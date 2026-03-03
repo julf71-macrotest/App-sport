@@ -33,7 +33,7 @@ class SheetClient:
 
         key = name.strip()
         if key in self._ws_cache:
-        return self._ws_cache[key]
+            return self._ws_cache[key]
 
         # 1) Try gspread native exact lookup first (most reliable)
         try:
