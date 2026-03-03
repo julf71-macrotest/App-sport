@@ -1,5 +1,6 @@
 import time
 from streamlit.runtime.scriptrunner import add_script_run_ctx  # optionnel
+from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
 
@@ -146,6 +147,7 @@ if pending.empty:
         except Exception:
             pass
 
+        client.invalidate_cache()
         st.rerun()
         st.session_state["active_session_id"] = ""
         st.session_state["rest_start"] = None
