@@ -26,7 +26,18 @@ class SheetClient:
         return SheetClient(gc=gc, sh=sh)
 
     def worksheet(self, name: str) -> gspread.Worksheet:
-        return self.sh.worksheet(name)
+    # Try exact match first
+        try:
+            return self.sh.worksheet(name)
+        except gspread.WorksheetNotFound:
+            # Fallback: case/space-insensitive match
+            target = name.strip().lower()
+            for ws in self.sh.worksheets():
+                if ws.title.strip().lower() == target:
+                    return ws
+            # If still not found, raise with available titles
+            titles = [ws.title for ws in self.sh.worksheets()]
+            raise gspread.WorksheetNotFound(f"{name} (available: {titles})")
 
     def read_df(self, ws_name: str) -> pd.DataFrame:
         ws = self.worksheet(ws_name)
