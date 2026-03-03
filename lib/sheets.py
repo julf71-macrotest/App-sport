@@ -1,3 +1,4 @@
+import time
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,16 +40,29 @@ class SheetClient:
             titles = [ws.title for ws in self.sh.worksheets()]
             raise gspread.WorksheetNotFound(f"{name} (available: {titles})")
 
-    def read_df(self, ws_name: str) -> pd.DataFrame:
+    def read_df(self, ws_name: str, ttl_sec: int = 15) -> pd.DataFrame:
+        # simple in-memory cache to avoid Sheets quota bursts
+        if not hasattr(self, "_df_cache"):
+            self._df_cache = {}
+        if not hasattr(self, "_df_cache_ts"):
+            self._df_cache_ts = {}
+
+        now = time.time()
+        if ws_name in self._df_cache and (now - self._df_cache_ts.get(ws_name, 0)) < ttl_sec:
+            return self._df_cache[ws_name].copy()
+
         ws = self.worksheet(ws_name)
         values = ws.get_all_values()
         if not values:
-            return pd.DataFrame()
-        header = values[0]
-        rows = values[1:]
-        df = pd.DataFrame(rows, columns=header)
-        return df
+            df = pd.DataFrame()
+        else:
+            header = values[0]
+            rows = values[1:]
+            df = pd.DataFrame(rows, columns=header)
 
+        self._df_cache[ws_name] = df
+        self._df_cache_ts[ws_name] = now
+        return df.copy()
     def write_df_overwrite(self, ws_name: str, df: pd.DataFrame) -> None:
         ws = self.worksheet(ws_name)
         ws.clear()
