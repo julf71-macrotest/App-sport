@@ -42,7 +42,7 @@ with left:
 
     st.divider()
     st.subheader("Créer")
-    new_name = st.text_input("Nom du nouveau programme", "")
+    new_name = st.text_input("Nom du nouveau programme", "", key="create_prog_name")
     new_desc = st.text_area("Description", "", height=80)
     if st.button("Créer le programme"):
         if not new_name.strip():
@@ -72,8 +72,8 @@ with right:
         st.stop()
 
     prog_row = df_prog[df_prog["program_id"] == selected_pid].iloc[0].to_dict()
-    pname = st.text_input("Nom", prog_row["name"])
-    pdesc = st.text_area("Description", prog_row["description"], height=80)
+    pname = st.text_input("Nom", prog_row["name"], key=f"prog_name_{selected_pid}")
+    pdesc = st.text_area("Description", prog_row["description"], height=80, key=f"prog_desc_{selected_pid}")
 
     if st.button("Sauvegarder infos programme", type="primary"):
         client.update_row_by_id("programs", "program_id", selected_pid, {
