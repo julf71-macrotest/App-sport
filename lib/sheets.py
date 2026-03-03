@@ -26,50 +26,64 @@ class SheetClient:
         sh = gc.open_by_key(sheet_id)
         return SheetClient(gc=gc, sh=sh)
 
-    def worksheet(self, name: str):
-        # Cache worksheet objects to avoid repeated metadata fetches
+    def worksheet(self, name: str) -> gspread.Worksheet:
+            # Cache worksheet objects to avoid repeated metadata fetches
         if not hasattr(self, "_ws_cache"):
             self._ws_cache = {}
 
         key = name.strip()
         if key in self._ws_cache:
-            return self._ws_cache[key]
+        return self._ws_cache[key]
 
-        # Fallback: build a title map once
-        if not hasattr(self, "_ws_title_map"):
-            self._ws_title_map = {ws.title.strip().lower(): ws for ws in self.sh.worksheets()}
+        # 1) Try gspread native exact lookup first (most reliable)
+        try:
+            ws = self.sh.worksheet(key)
+            self._ws_cache[key] = ws
+            return ws
+        except gspread.WorksheetNotFound:
+            pass  # we'll do a tolerant lookup below
+
+        # 2) Build / rebuild title map (tolerant lookup)
+        def build_title_map():
+            return {ws.title.strip().lower(): ws for ws in self.sh.worksheets()}
+
+        if not hasattr(self, "_ws_title_map") or not isinstance(self._ws_title_map, dict) or len(self._ws_title_map) == 0:
+            self._ws_title_map = build_title_map()
+
+        # If still empty, force rebuild once (handles a previous bad cache build)
+        if len(self._ws_title_map) == 0:
+            self._ws_title_map = build_title_map()
 
         ws = self._ws_title_map.get(key.lower())
         if ws is None:
-            titles = list(self._ws_title_map.keys())
+            titles = [w.title for w in self.sh.worksheets()]
             raise gspread.WorksheetNotFound(f"{name} (available: {titles})")
 
         self._ws_cache[key] = ws
         return ws
-
-    def read_df(self, ws_name: str, ttl_sec: int = 120) -> pd.DataFrame:
-        # simple in-memory cache to avoid Sheets quota bursts
-        if not hasattr(self, "_df_cache"):
-            self._df_cache = {}
-        if not hasattr(self, "_df_cache_ts"):
+        def read_df(self, ws_name: str, ttl_sec: int = 120) -> pd.DataFrame:
+            # simple in-memory cache to avoid Sheets quota bursts
+            if not hasattr(self, "_df_cache"):
+                self._df_cache = {}
+            if not hasattr(self, "_df_cache_ts"):
             self._df_cache_ts = {}
 
-        now = time.time()
-        if ws_name in self._df_cache and (now - self._df_cache_ts.get(ws_name, 0)) < ttl_sec:
-            return self._df_cache[ws_name].copy()
+            now = time.time()
+            if ws_name in self._df_cache and (now - self._df_cache_ts.get(ws_name, 0)) < ttl_sec:
+                return self._df_cache[ws_name].copy()
 
-        ws = self.worksheet(ws_name)
-        values = ws.get_all_values()
-        if not values:
-            df = pd.DataFrame()
-        else:
-            header = values[0]
-            rows = values[1:]
-            df = pd.DataFrame(rows, columns=header)
+            ws = self.worksheet(ws_name)
+            values = ws.get_all_values()
+            if not values:
+                df = pd.DataFrame()
+            else:
+                header = values[0]
+                rows = values[1:]
+                df = pd.DataFrame(rows, columns=header)
 
-        self._df_cache[ws_name] = df
-        self._df_cache_ts[ws_name] = now
-        return df.copy()
+            self._df_cache[ws_name] = df
+            self._df_cache_ts[ws_name] = now
+            return df.copy()
 
     def invalidate_cache(self):
         if hasattr(self, "_df_cache"):
