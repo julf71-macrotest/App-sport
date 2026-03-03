@@ -67,7 +67,7 @@ class SheetClient:
             if not hasattr(self, "_df_cache"):
                 self._df_cache = {}
             if not hasattr(self, "_df_cache_ts"):
-            self._df_cache_ts = {}
+                self._df_cache_ts = {}
 
             now = time.time()
             if ws_name in self._df_cache and (now - self._df_cache_ts.get(ws_name, 0)) < ttl_sec:
