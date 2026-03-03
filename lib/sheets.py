@@ -26,21 +26,28 @@ class SheetClient:
         sh = gc.open_by_key(sheet_id)
         return SheetClient(gc=gc, sh=sh)
 
-    def worksheet(self, name: str) -> gspread.Worksheet:
-    # Try exact match first
-        try:
-            return self.sh.worksheet(name)
-        except gspread.WorksheetNotFound:
-            # Fallback: case/space-insensitive match
-            target = name.strip().lower()
-            for ws in self.sh.worksheets():
-                if ws.title.strip().lower() == target:
-                    return ws
-            # If still not found, raise with available titles
-            titles = [ws.title for ws in self.sh.worksheets()]
+    def worksheet(self, name: str):
+        # Cache worksheet objects to avoid repeated metadata fetches
+        if not hasattr(self, "_ws_cache"):
+            self._ws_cache = {}
+
+        key = name.strip()
+        if key in self._ws_cache:
+            return self._ws_cache[key]
+
+        # Fallback: build a title map once
+        if not hasattr(self, "_ws_title_map"):
+            self._ws_title_map = {ws.title.strip().lower(): ws for ws in self.sh.worksheets()}
+
+        ws = self._ws_title_map.get(key.lower())
+        if ws is None:
+            titles = list(self._ws_title_map.keys())
             raise gspread.WorksheetNotFound(f"{name} (available: {titles})")
 
-    def read_df(self, ws_name: str, ttl_sec: int = 15) -> pd.DataFrame:
+        self._ws_cache[key] = ws
+        return ws
+
+    def read_df(self, ws_name: str, ttl_sec: int = 120) -> pd.DataFrame:
         # simple in-memory cache to avoid Sheets quota bursts
         if not hasattr(self, "_df_cache"):
             self._df_cache = {}
