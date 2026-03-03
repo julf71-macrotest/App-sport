@@ -1,5 +1,5 @@
-streamlit==1.37.1
-pandas==2.2.2
-gspread==6.1.4
-google-auth==2.33.0
-python-dateutil==2.9.0.post0
+streamlit
+pandas
+gspread
+google-auth
+python-dateutil
