@@ -70,6 +70,17 @@ class SheetClient:
         self._df_cache[ws_name] = df
         self._df_cache_ts[ws_name] = now
         return df.copy()
+
+    def invalidate_cache(self):
+        if hasattr(self, "_df_cache"):
+            self._df_cache = {}
+        if hasattr(self, "_df_cache_ts"):
+            self._df_cache_ts = {}
+        if hasattr(self, "_ws_cache"):
+            self._ws_cache = {}
+        if hasattr(self, "_ws_title_map"):
+            self._ws_title_map = {}
+    
     def write_df_overwrite(self, ws_name: str, df: pd.DataFrame) -> None:
         ws = self.worksheet(ws_name)
         ws.clear()
