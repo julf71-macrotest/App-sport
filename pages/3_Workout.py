@@ -1,4 +1,5 @@
 import time
+from streamlit.runtime.scriptrunner import add_script_run_ctx  # optionnel
 import pandas as pd
 import streamlit as st
 
@@ -128,6 +129,24 @@ if pending.empty:
             "duration_sec": dur,
             "status": "done",
         })
+        # 1) On marque la tâche comme terminée en base (déjà fait via update_row_by_id)
+
+        # 2) On démarre le repos si besoin
+        rest_sec = safe_int(current_task.get("target_rest_sec"), 0)
+        if rest_sec > 0:
+            st.session_state["rest_end_ts"] = time.time() + rest_sec
+            st.session_state["in_rest"] = True
+        else:
+            st.session_state["in_rest"] = False
+            st.session_state["rest_end_ts"] = None
+
+        # 3) On force un refresh des caches de data pour que la prochaine tâche apparaisse
+        try:
+            st.cache_data.clear()
+        except Exception:
+            pass
+
+        st.rerun()
         st.session_state["active_session_id"] = ""
         st.session_state["rest_start"] = None
         st.session_state["rest_dur"] = 0
