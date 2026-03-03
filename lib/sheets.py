@@ -61,6 +61,7 @@ class SheetClient:
 
         self._ws_cache[key] = ws
         return ws
+        
         def read_df(self, ws_name: str, ttl_sec: int = 120) -> pd.DataFrame:
             # simple in-memory cache to avoid Sheets quota bursts
             if not hasattr(self, "_df_cache"):
